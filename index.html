@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管件价格查询系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36CFC9',
+                        neutral: '#F5F7FA',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .form-shadow {
+                box-shadow: 0 2px 14px 0 rgba(0, 0, 0, 0.06);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .select-focus {
+                @apply ring-2 ring-primary/20 border-primary;
+            }
+            .history-item-hover {
+                @apply hover:bg-light transition-all-300 cursor-pointer;
+            }
+            .price-appear {
+                animation: fadeIn 0.5s ease forwards;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .reducer-tag {
+                @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/5 text-primary border border-primary/20;
+            }
+            .modal-backdrop {
+                backdrop-filter: blur(2px);
+            }
+            .db-node {
+                @apply p-3 mb-2 rounded-md border transition-all-300;
+            }
+            .db-node-level-0 {
+                @apply border-primary bg-primary/5;
+            }
+            .db-node-level-1 {
+                @apply border-blue-400 bg-blue-50 ml-4;
+            }
+            .db-node-level-2 {
+                @apply border-blue-300 bg-blue-50/70 ml-8;
+            }
+            .db-node-level-3 {
+                @apply border-blue-200 bg-blue-50/50 ml-12;
+            }
+            .db-node-level-4 {
+                @apply border-blue-100 bg-blue-50/30 ml-16;
+            }
+            .db-node-level-5 {
+                @apply border-gray-200 bg-gray-50 ml-20;
+            }
+            .db-price {
+                @apply inline-block w-24 text-right font-medium text-primary border-b border-dashed border-primary/30 cursor-pointer hover:border-primary;
+            }
+            .login-animation {
+                animation: loginFade 0.5s ease forwards;
+            }
+            @keyframes loginFade {
+                from { opacity: 0; transform: scale(0.95); }
+                to { opacity: 1; transform: scale(1); }
+            }
+            .shake {
+                animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            }
+            @keyframes shake {
+                10%, 90% { transform: translateX(-1px); }
+                20%, 80% { transform: translateX(2px); }
+                30%, 50%, 70% { transform: translateX(-3px); }
+                40%, 60% { transform: translateX(3px); }
+            }
+            .slide-out {
+                animation: slideOut 0.4s ease forwards;
+            }
+            @keyframes slideOut {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(-20px); visibility: hidden; }
+            }
+            .slide-in {
+                animation: slideIn 0.5s ease forwards;
+            }
+            @keyframes slideIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        }
+    </style>
+</head>
+<body class="bg-neutral font-inter text-dark min-h-screen">
+    <!-- 登录界面 -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 login-animation">
+        <div class="bg-white rounded-xl p-8 w-full max-w-md form-shadow">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                    <i class="fa fa-pipe text-3xl text-primary"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-dark">管件价格查询系统</h1>
+                <p class="text-gray-500 mt-2">请输入访问密码</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">访问密码</label>
+                    <div class="relative">
+                        <input type="password" id="password" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 pr-10"
+                            placeholder="请输入密码" required>
+                        <i class="fa fa-lock absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <button type="submit" 
+                        class="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-all-300 font-medium flex items-center justify-center"
+                    >
+                        <i class="fa fa-sign-in mr-2"></i> 登录系统
+                    </button>
+                </div>
+                
+                <p id="errorMsg" class="text-red-500 text-sm text-center hidden mt-2">
+                    <i class="fa fa-exclamation-circle mr-1"></i> 密码错误，请重新输入
+                </p>
+            </form>
+            
+            <div class="mt-6 text-center text-xs text-gray-500">
+                系统受保护，仅限授权人员访问 | V6版本
+                <p class="mt-1">关闭页面后需重新登录</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主系统界面 (初始隐藏) -->
+    <div id="mainSystem" class="hidden">
+        <div class="container mx-auto px-4 py-8 max-w-7xl">
+            <!-- 系统标题 -->
+            <div class="mb-8 slide-in" style="animation-delay: 0.1s">
+                <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-dark flex items-center">
+                    <i class="fa fa-pipe mr-3 text-primary"></i>
+                    管件价格查询系统
+                </h1>
+                <p class="text-gray-500 mt-2">六级联动查询，实时显示管件价格信息（V6 版本）</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧查询区域 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 查询表单卡片 -->
+                    <div class="bg-white rounded-xl p-6 form-shadow slide-in" style="animation-delay: 0.2s">
+                        <form id="queryForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- 1. 标准类型 -->
+                            <div class="space-y-2">
+                                <label for="standard" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">1.</span> 标准类型
+                                </label>
+                                <select id="standard" name="standard" required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-white"
+                                >
+                                    <option value="">请选择标准类型</option>
+                                    <option value="日标">日标</option>
+                                    <option value="英制">英制</option>
+                                    <option value="DN">DN</option>
+                                </select>
+                            </div>
+
+                            <!-- 2. 管道类型 -->
+                            <div class="space-y-2">
+                                <label for="pipeType" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">2.</span> 管道类型
+                                </label>
+                                <select id="pipeType" name="pipeType" disabled required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-gray-50 cursor-not-allowed"
+                                >
+                                    <option value="">请先选择标准类型</option>
+                                </select>
+                            </div>
+
+                            <!-- 3. 钢材类型 -->
+                            <div class="space-y-2">
+                                <label for="steelType" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">3.</span> 钢材类型
+                                </label>
+                                <select id="steelType" name="steelType" disabled required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-gray-50 cursor-not-allowed"
+                                >
+                                    <option value="">请先选择管道类型</option>
+                                    <option value="316L EP">316L EP</option>
+                                    <option value="316L BA">316L BA</option>
+                                    <option value="304L BA">304L BA</option>
+                                    <option value="304 AP">304 AP</option>
+                                </select>
+                            </div>
+
+                            <!-- 4. 外径类型 -->
+                            <div class="space-y-2">
+                                <label for="outerDiameter" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">4.</span> 外径类型
+                                    <span class="ml-2 reducer-tag">
+                                        <i class="fa fa-info-circle mr-1"></i>大小头格式说明
+                                    </span>
+                                </label>
+                                <select id="outerDiameter" name="outerDiameter" disabled required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-gray-50 cursor-not-allowed"
+                                >
+                                    <option value="">请先选择钢材类型</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fa fa-exclamation-circle mr-1 text-primary"></i>
+                                    带"*"表示特殊规格，带"转以下"表示可转该尺寸及以下所有小规格
+                                </p>
+                            </div>
+
+                            <!-- 5. 壁厚 -->
+                            <div class="space-y-2">
+                                <label for="wallThickness" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">5.</span> 壁厚 (mm)
+                                </label>
+                                <select id="wallThickness" name="wallThickness" disabled required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-gray-50 cursor-not-allowed"
+                                >
+                                    <option value="">请先选择外径类型</option>
+                                </select>
+                            </div>
+
+                            <!-- 6. 规格 -->
+                            <div class="space-y-2">
+                                <label for="specification" class="block text-sm font-medium text-gray-700">
+                                    <span class="text-primary font-bold">6.</span> 规格
+                                </label>
+                                <select id="specification" name="specification" disabled required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:select-focus transition-all-300 appearance-none bg-gray-50 cursor-not-allowed"
+                                >
+                                    <option value="">请先选择壁厚</option>
+                                </select>
+                            </div>
+
+                            <!-- 价格显示区域 -->
+                            <div class="col-span-1 md:col-span-2 lg:col-span-3 mt-2">
+                                <div id="priceDisplay" class="p-6 bg-primary/5 rounded-lg border border-primary/20 hidden">
+                                    <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                        <div>
+                                            <p class="text-gray-500">当前选择的管件单价</p>
+                                            <p class="text-3xl font-bold text-primary mt-2 flex items-baseline">
+                                                <span id="currentPrice" class="mr-2"></span>
+                                                <span class="text-base font-normal text-gray-500">元/个</span>
+                                            </p>
+                                        </div>
+                                        <div class="mt-4 md:mt-0 flex gap-4">
+                                            <button id="exportCurrentBtn" 
+                                                class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all-300 flex items-center"
+                                            >
+                                                <i class="fa fa-download mr-2"></i> 导出当前结果
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 选择提示 -->
+                                <div id="selectionHint" class="p-6 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div class="flex items-center justify-center">
+                                        <i class="fa fa-info-circle text-primary mr-2"></i>
+                                        <p class="text-gray-500">请完成所有参数选择以查看价格</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 选择结果展示 -->
+                    <div class="bg-white rounded-xl p-6 form-shadow slide-in" style="animation-delay: 0.3s">
+                        <h2 class="text-xl font-semibold mb-4 flex items-center">
+                            <i class="fa fa-clipboard-check mr-2 text-primary"></i>
+                            选择结果
+                        </h2>
+                        
+                        <!-- 结果卡片 -->
+                        <div id="resultCard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-light rounded-lg">
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-cubes text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">标准类型</p>
+                                    <p id="resStandard" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-puzzle-piece text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">管道类型</p>
+                                    <p id="resPipeType" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-microchip text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">钢材类型</p>
+                                    <p id="resSteelType" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-arrows-h text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">外径类型</p>
+                                    <p id="resOuterDiameter" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-arrows-v text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">壁厚</p>
+                                    <p id="resWallThickness" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary/10 p-2 rounded-full mr-3">
+                                    <i class="fa fa-list-alt text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">规格</p>
+                                    <p id="resSpecification" class="font-medium mt-1 text-gray-400 italic">未选择</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧查询历史区域 -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl p-6 form-shadow h-full flex flex-col slide-in" style="animation-delay: 0.4s">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-semibold flex items-center">
+                                <i class="fa fa-history mr-2 text-primary"></i>
+                                查询历史
+                            </h2>
+                            <div class="flex gap-2">
+                                <button id="clearHistoryBtn" 
+                                    class="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-all-300 flex items-center"
+                                >
+                                    <i class="fa fa-trash-o mr-1"></i> 清空
+                                </button>
+                                <button id="exportHistoryBtn" 
+                                    class="text-sm px-3 py-1 bg-primary/10 hover:bg-primary/20 rounded-lg text-primary transition-all-300 flex items-center"
+                                >
+                                    <i class="fa fa-download mr-1"></i> 导出全部
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 历史记录列表 -->
+                        <div id="historyList" class="overflow-y-auto flex-grow">
+                            <div class="text-center text-gray-500 py-10" id="emptyHistoryMsg">
+                                <i class="fa fa-file-text-o text-4xl mb-3 text-gray-300"></i>
+                                <p>暂无查询历史记录</p>
+                            </div>
+                            <!-- 历史记录将通过JS动态添加 -->
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 text-center">
+                            历史记录保存在本地，关闭浏览器数据会导致记录丢失
+                        </div>
+                    </div>
+                </div>
+            </div>            
+        </div>
+
+        <!-- 功能按钮组 -->
+        <div class="fixed top-4 right-4 z-50 flex gap-2 slide-in" style="animation-delay: 0.6s">
+            <button onclick="openDatabaseEditor()" 
+                class="px-4 py-2 bg-secondary text-white rounded-lg shadow-lg hover:bg-secondary/90 transition-all duration-300 flex items-center"
+            >
+                <i class="fa fa-database mr-2"></i> 编辑数据
+            </button>
+        </div>
+
+        <!-- 数据库编辑模态框 -->
+        <div id="databaseModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-backdrop">
+            <div class="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="text-xl font-bold flex items-center">
+                        <i class="fa fa-database mr-2 text-primary"></i>
+                        管件价格数据库管理
+                    </h3>
+                    <div class="flex gap-3">
+                        <button id="saveDatabaseBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300">
+                            <i class="fa fa-save mr-1"></i> 保存修改
+                        </button>
+                        <button onclick="closeDatabaseEditor()" class="p-2 text-gray-500 hover:text-gray-700 transition-all duration-300">
+                            <i class="fa fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 overflow-y-auto flex-grow">
+                    <div class="mb-6">
+                        <p class="text-sm text-gray-500 mb-4">
+                            <i class="fa fa-info-circle text-primary mr-1"></i>
+                            在这里可以查看和编辑管件价格数据库。点击价格数值可直接修改，完成后请点击"保存修改"按钮。
+                        </p>
+                        
+                        <div class="flex gap-3 mb-4">
+                            <div class="flex-1">
+                                <input type="text" id="dbSearchInput" placeholder="搜索数据库内容..." 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:select-focus"
+                                >
+                            </div>
+                            <button id="dbSearchBtn" class="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all duration-300">
+                                <i class="fa fa-search mr-1"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="databaseContent" class="space-y-4">
+                        <!-- 数据库内容将通过JS动态生成 -->
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t border-gray-100 bg-light rounded-b-xl">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-500">
+                            <span id="dbNodeCount">0</span> 个数据节点
+                        </div>
+                        <div>
+                            <button id="exportDatabaseBtn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 mr-2">
+                                <i class="fa fa-download mr-1"></i> 导出数据库
+                            </button>
+                            <button id="importDatabaseBtn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300">
+                                <i class="fa fa-upload mr-1"></i> 导入数据库
+                            </button>
+                            <input type="file" id="importDatabaseFile" accept=".json" class="hidden">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据库初始化函数 - 从localStorage加载，如无则使用默认数据
+        function initDatabase() {
+            // 默认管件价格数据库（V20版本）
+            const defaultDB = {
+                "日标": {
+                    "Elbow弯头": {
+                        "8A": {
+                            "无缝": {
+                                "1.2": { "316L EP": 100.00, "316L BA": 70.00, "304L BA": 68.00, "304 AP": 66.64 },
+                                "1.65": { "316L EP": 110.00, "316L BA": 75.00, "304L BA": 73.00, "304 AP": 71.54 }
+                            }
+                        },
+                        "10A": {
+                            "无缝": {
+                                "1.2": { "316L EP": 120.00, "316L BA": 82.00, "304L BA": 80.00, "304 AP": 78.40 },
+                                "1.65": { "316L EP": 160.00, "316L BA": 102.00, "304L BA": 100.00, "304 AP": 98.00 }
+                            }
+                        },
+                        "15A": {
+                            "无缝": {
+                                "1.65": { "316L EP": 180.00, "316L BA": 111.00, "304L BA": 105.00, "304 AP": 102.90 },
+                                "2.1": { "316L EP": 270.00, "316L BA": 166.50, "304L BA": 157.50, "304 AP": 154.35 }
+                            }
+                        },
+                        "20A": {
+                            "无缝": {
+                                "1.65": { "316L EP": 188.00, "316L BA": 119.00, "304L BA": 110.00, "304 AP": 107.80 },
+                                "2.1": { "316L EP": 282.00, "316L BA": 178.50, "304L BA": 165.00, "304 AP": 161.70 }
+                            },
+                            "有缝": {
+                                "1.65": { "316L EP": 182.00, "316L BA": 114.00, "304L BA": 105.00, "304 AP": 102.90 },
+                                "2.1": { "316L EP": 273.00, "316L BA": 171.00, "304L BA": 157.50, "304 AP": 154.35 }
+                            }
+                        },
+                        "25A": {
+                            "无缝": {
+                                "1.65": { "316L EP": 196.00, "316L BA": 126.00, "304L BA": 116.00, "304 AP": 113.68 },
+                                "2.8": { "316L EP": 294.00, "316L BA": 189.00, "304L BA": 174.00, "304 AP": 170.52 }
+                            },
+                            "有缝": {
+                                "1.65": { "316L EP": 190.00, "316L BA": 120.00, "304L BA": 110.00, "304 AP": 107.80 },
+                                "2.8": { "316L EP": 285.00, "316L BA": 180.00, "304L BA": 165.00, "304 AP": 161.70 }
+                            }
+                        },
+                        "32A": {
+                            "无缝": {
+                                "1.65": { "316L EP": 210.00, "316L BA": 135.00, "304L BA": 125.00, "304 AP": 122.50 },
+                                "2.8": { "316L EP": 315.00, "316L BA": 202.50, "304L BA": 187.50, "304 AP": 183.75 }
+                            },
+                            "有缝": {
+                                "1.65": { "316L EP": 205.00, "316L BA": 130.00, "304L BA": 120.00, "304 AP": 117.60 },
+                                "2.8": { "316L EP": 305.00, "316L BA": 195.00, "304L BA": 180.00, "304 AP": 176.40 }
+                            }
+                        },
+                        "40A": {
+                            "无缝": {
+                                "2.1": { "316L EP": 250.00, "316L BA": 160.00, "304L BA": 150.00, "304 AP": 147.00 },
+                                "3.2": { "316L EP": 375.00, "316L BA": 240.00, "304L BA": 225.00, "304 AP": 220.50 }
+                            },
+                            "有缝": {
+                                "2.1": { "316L EP": 240.00, "316L BA": 155.00, "304L BA": 145.00, "304 AP": 142.10 },
+                                "3.2": { "316L EP": 360.00, "316L BA": 232.50, "304L BA": 217.50, "304 AP": 213.15 }
+                            }
+                        }
+                    },
+                    "Tee三通": {
+                        "8A": {
+                            "无缝": {
+                                "1.2": { "316L EP": 120.00, "316L BA": 80.00, "304L BA": 78.00, "304 AP": 76.44 },
+                                "1.65": { "316L EP": 140.00, "316L BA": 86.00, "304L BA": 84.00, "304 AP": 82.32 }
+                            }
+                        },
+                        "10A": {
+                            "无缝": {
+                                "1.2": { "316L EP": 165.00, "316L BA": 88.00, "304L BA": 86.00, "304 AP": 84.28 },
+                                "1.65": { "316L EP": 185.00, "316L BA": 95.00, "304L BA": 93.00, "304 AP": 91.14 }
+                            }
+                        }
+                    },
+                    "Reducer大小头": {
+                        "8A": {
+                            "无缝": {
+                                "1.2": { "316L EP": "-", "316L BA": "-", "304L BA": "-", "304 AP": "-" },
+                                "1.65": { "316L EP": "-", "316L BA": "-", "304L BA": "-", "304 AP": "-" }
+                            }
+                        },
+                        "10A": {
+                            "无缝": {
+                                "1.2": { "316L EP": 200.00, "316L BA": 115.00, "304L BA": 110.00, "304 AP": 107.80 },
+                                "1.65": { "316L EP": 220.00, "316L BA": 120.00, "304L BA": 115.00, "304 AP": 112.70 }
+                            }
+                        }
+                    }
+                },
+                "英制": {
+                    "Elbow弯头": {
+                        "1/4\"": {
+                            "无缝": {
+                                "1.65": { "316L EP": 150.00, "316L BA": 95.00, "304L BA": 90.00, "304 AP": 88.20 }
+                            }
+                        }
+                    }
+                },
+                "DN": {
+                    "球阀": {
+                        "1/4\"": {
+                            "1000Psi": {
+                                "卡套": { "316L EP": null, "316L BA": 69.33, "304L BA": null, "304 AP": null }
+                            },
+                            "2000Psi": {
+                                "卡套": { "316L EP": 105.67, "316L BA": 98.33, "304L BA": 89.67, "304 AP": 86.33 }
+                            }
+                        },
+                        "1/2\"": {
+                            "1000Psi": {
+                                "卡套": { "316L EP": 120.67, "316L BA": 105.33, "304L BA": 95.67, "304 AP": 92.33 }
+                            }
+                        }
+                    },
+                    "法兰": {
+                        "DN15": {
+                            "PN16": {
+                                "RF": { "316L EP": 210.00, "316L BA": 180.00, "304L BA": 160.00, "304 AP": 155.00 }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // 尝试从localStorage获取保存的数据库
+            const savedDB = localStorage.getItem('pipePriceDatabase');
+            
+            if (savedDB) {
+                try {
+                    // 解析并返回保存的数据库
+                    return JSON.parse(savedDB);
+                } catch (error) {
+                    console.error('解析保存的数据库失败，使用默认数据库:', error);
+                    return defaultDB;
+                }
+            } else {
+                // 没有保存的数据库，使用默认数据库并保存到localStorage
+                localStorage.setItem('pipePriceDatabase', JSON.stringify(defaultDB));
+                return defaultDB;
+            }
+        }
+
+        // 全局管件价格数据库（从localStorage加载或使用默认数据）
+        let pipePriceDB = initDatabase();
+
+        // 保存数据库到localStorage的函数
+        function saveDatabaseToLocalStorage() {
+            try {
+                localStorage.setItem('pipePriceDatabase', JSON.stringify(pipePriceDB));
+                console.log('数据库已成功保存到本地存储');
+                return true;
+            } catch (error) {
+                console.error('保存数据库到本地存储失败:', error);
+                return false;
+            }
+        }
+
+        // 初始化管道系统
+        function initPipeSystem() {
+            // 获取DOM元素
+            const standardSelect = document.getElementById('standard');
+            const pipeTypeSelect = document.getElementById('pipeType');
+            const steelTypeSelect = document.getElementById('steelType');
+            const outerDiameterSelect = document.getElementById('outerDiameter');
+            const wallThicknessSelect = document.getElementById('wallThickness');
+            const specificationSelect = document.getElementById('specification');
+            const priceDisplay = document.getElementById('priceDisplay');
+            const selectionHint = document.getElementById('selectionHint');
+            const currentPriceElement = document.getElementById('currentPrice');
+            
+            // 结果显示元素
+            const resStandard = document.getElementById('resStandard');
+            const resPipeType = document.getElementById('resPipeType');
+            const resSteelType = document.getElementById('resSteelType');
+            const resOuterDiameter = document.getElementById('resOuterDiameter');
+            const resWallThickness = document.getElementById('resWallThickness');
+            const resSpecification = document.getElementById('resSpecification');
+            
+            // 历史记录元素
+            const historyList = document.getElementById('historyList');
+            const emptyHistoryMsg = document.getElementById('emptyHistoryMsg');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+            
+            // 加载查询历史
+            loadQueryHistory();
+            
+            // 1. 标准类型变化事件
+            standardSelect.addEventListener('change', function() {
+                const selectedStandard = this.value;
+                
+                // 更新结果显示
+                resStandard.textContent = selectedStandard || '未选择';
+                
+                // 重置后续选择框
+                resetSelect(pipeTypeSelect, '请先选择标准类型');
+                resetSelect(steelTypeSelect, '请先选择管道类型');
+                resetSelect(outerDiameterSelect, '请先选择钢材类型');
+                resetSelect(wallThicknessSelect, '请先选择外径类型');
+                resetSelect(specificationSelect, '请先选择壁厚');
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 如果选择了标准类型，填充管道类型选择框
+                if (selectedStandard && pipePriceDB[selectedStandard]) {
+                    pipeTypeSelect.disabled = false;
+                    pipeTypeSelect.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                    pipeTypeSelect.innerHTML = '<option value="">请选择管道类型</option>';
+                    
+                    // 添加所有管道类型
+                    Object.keys(pipePriceDB[selectedStandard]).forEach(pipeType => {
+                        const option = document.createElement('option');
+                        option.value = pipeType;
+                        option.textContent = pipeType;
+                        pipeTypeSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 2. 管道类型变化事件 - 修复核心：正确绑定钢材类型下拉框
+            pipeTypeSelect.addEventListener('change', function() {
+                const selectedStandard = standardSelect.value;
+                const selectedPipeType = this.value;
+                
+                // 更新结果显示
+                resPipeType.textContent = selectedPipeType || '未选择';
+                
+                // 重置后续选择框
+                resetSelect(steelTypeSelect, '请先选择管道类型');
+                resetSelect(outerDiameterSelect, '请先选择钢材类型');
+                resetSelect(wallThicknessSelect, '请先选择外径类型');
+                resetSelect(specificationSelect, '请先选择壁厚');
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 修复：检查是否存在有效的管道类型数据
+                if (selectedStandard && selectedPipeType && 
+                    pipePriceDB[selectedStandard] && 
+                    pipePriceDB[selectedStandard][selectedPipeType]) {
+                    
+                    // 启用钢材类型选择框
+                    steelTypeSelect.disabled = false;
+                    steelTypeSelect.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                    
+                    // 确保钢材类型选项正确显示
+                    steelTypeSelect.innerHTML = '';
+                    const steelTypes = ["316L EP", "316L BA", "304L BA", "304 AP"];
+                    
+                    // 添加默认提示选项
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = "";
+                    defaultOption.textContent = "请选择钢材类型";
+                    steelTypeSelect.appendChild(defaultOption);
+                    
+                    // 添加所有钢材类型选项
+                    steelTypes.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        steelTypeSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 3. 钢材类型变化事件
+            steelTypeSelect.addEventListener('change', function() {
+                const selectedStandard = standardSelect.value;
+                const selectedPipeType = pipeTypeSelect.value;
+                const selectedSteelType = this.value;
+                
+                // 更新结果显示
+                resSteelType.textContent = selectedSteelType || '未选择';
+                
+                // 重置后续选择框
+                resetSelect(outerDiameterSelect, '请先选择钢材类型');
+                resetSelect(wallThicknessSelect, '请先选择外径类型');
+                resetSelect(specificationSelect, '请先选择壁厚');
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 如果选择了有效的钢材类型，填充外径类型选择框
+                if (selectedStandard && selectedPipeType && selectedSteelType && 
+                    pipePriceDB[selectedStandard] &&
+                    pipePriceDB[selectedStandard][selectedPipeType]) {
+                    
+                    outerDiameterSelect.disabled = false;
+                    outerDiameterSelect.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                    outerDiameterSelect.innerHTML = '<option value="">请选择外径类型</option>';
+                    
+                    // 添加所有外径类型
+                    Object.keys(pipePriceDB[selectedStandard][selectedPipeType]).forEach(outerDiameter => {
+                        const option = document.createElement('option');
+                        option.value = outerDiameter;
+                        option.textContent = outerDiameter;
+                        outerDiameterSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 4. 外径类型变化事件
+            outerDiameterSelect.addEventListener('change', function() {
+                const selectedStandard = standardSelect.value;
+                const selectedPipeType = pipeTypeSelect.value;
+                const selectedOuterDiameter = this.value;
+                
+                // 更新结果显示
+                resOuterDiameter.textContent = selectedOuterDiameter || '未选择';
+                
+                // 重置后续选择框
+                resetSelect(wallThicknessSelect, '请先选择外径类型');
+                resetSelect(specificationSelect, '请先选择壁厚');
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 如果选择了有效的外径类型，填充壁厚选择框
+                if (selectedStandard && selectedPipeType && selectedOuterDiameter &&
+                    pipePriceDB[selectedStandard] &&
+                    pipePriceDB[selectedStandard][selectedPipeType] && 
+                    pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter]) {
+                    
+                    wallThicknessSelect.disabled = false;
+                    wallThicknessSelect.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                    wallThicknessSelect.innerHTML = '<option value="">请选择壁厚</option>';
+                    
+                    // 添加所有壁厚
+                    Object.keys(pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter]).forEach(wallThickness => {
+                        const option = document.createElement('option');
+                        option.value = wallThickness;
+                        option.textContent = wallThickness;
+                        wallThicknessSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 5. 壁厚变化事件
+            wallThicknessSelect.addEventListener('change', function() {
+                const selectedStandard = standardSelect.value;
+                const selectedPipeType = pipeTypeSelect.value;
+                const selectedOuterDiameter = outerDiameterSelect.value;
+                const selectedWallThickness = this.value;
+                
+                // 更新结果显示
+                resWallThickness.textContent = selectedWallThickness || '未选择';
+                
+                // 重置后续选择框
+                resetSelect(specificationSelect, '请先选择壁厚');
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 如果选择了有效的壁厚，填充规格选择框
+                if (selectedStandard && selectedPipeType && selectedOuterDiameter && selectedWallThickness &&
+                    pipePriceDB[selectedStandard] &&
+                    pipePriceDB[selectedStandard][selectedPipeType] && 
+                    pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter] &&
+                    pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter][selectedWallThickness]) {
+                    
+                    specificationSelect.disabled = false;
+                    specificationSelect.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                    specificationSelect.innerHTML = '<option value="">请选择规格</option>';
+                    
+                    // 添加所有规格
+                    Object.keys(pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter][selectedWallThickness]).forEach(specification => {
+                        const option = document.createElement('option');
+                        option.value = specification;
+                        option.textContent = specification;
+                        specificationSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 6. 规格变化事件 - 最后一步，显示价格
+            specificationSelect.addEventListener('change', function() {
+                const selectedStandard = standardSelect.value;
+                const selectedPipeType = pipeTypeSelect.value;
+                const selectedSteelType = steelTypeSelect.value;
+                const selectedOuterDiameter = outerDiameterSelect.value;
+                const selectedWallThickness = wallThicknessSelect.value;
+                const selectedSpecification = this.value;
+                
+                // 更新结果显示
+                resSpecification.textContent = selectedSpecification || '未选择';
+                
+                // 隐藏价格显示，显示提示
+                priceDisplay.classList.add('hidden');
+                selectionHint.classList.remove('hidden');
+                
+                // 如果所有选项都已选择，计算并显示价格
+                if (selectedStandard && selectedPipeType && selectedSteelType && 
+                    selectedOuterDiameter && selectedWallThickness && selectedSpecification) {
+                    
+                    try {
+                        // 从数据库获取价格
+                        const price = pipePriceDB[selectedStandard][selectedPipeType][selectedOuterDiameter]
+                                      [selectedWallThickness][selectedSpecification][selectedSteelType];
+                        
+                        // 显示价格
+                        if (price !== undefined && price !== null && price !== "-") {
+                            currentPriceElement.textContent = price.toFixed(2);
+                            priceDisplay.classList.remove('hidden');
+                            selectionHint.classList.add('hidden');
+                            
+                            // 添加到查询历史
+                            addToHistory({
+                                standard: selectedStandard,
+                                pipeType: selectedPipeType,
+                                steelType: selectedSteelType,
+                                outerDiameter: selectedOuterDiameter,
+                                wallThickness: selectedWallThickness,
+                                specification: selectedSpecification,
+                                price: price,
+                                timestamp: new Date().toISOString()
+                            });
+                        } else {
+                            currentPriceElement.textContent = "无数据";
+                            priceDisplay.classList.remove('hidden');
+                            selectionHint.classList.add('hidden');
+                        }
+                    } catch (error) {
+                        console.error('获取价格失败:', error);
+                        currentPriceElement.textContent = "数据错误";
+                        priceDisplay.classList.remove('hidden');
+                        selectionHint.classList.add('hidden');
+                    }
+                }
+            });
+            
+            // 清空历史记录按钮事件
+            clearHistoryBtn.addEventListener('click', function() {
+                if (confirm('确定要清空所有查询历史记录吗？')) {
+                    localStorage.removeItem('pipePriceQueryHistory');
+                    loadQueryHistory();
+                }
+            });
+            
+            // 重置选择框的函数
+            function resetSelect(selectElement, placeholder) {
+                selectElement.disabled = true;
+                selectElement.classList.add('bg-gray-50', 'cursor-not-allowed');
+                selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+            }
+            
+            // 添加到查询历史
+            function addToHistory(queryData) {
+                // 获取现有历史记录
+                let history = JSON.parse(localStorage.getItem('pipePriceQueryHistory') || '[]');
+                
+                // 添加新记录
+                history.unshift(queryData);
+                
+                // 限制历史记录数量为100条
+                if (history.length > 100) {
+                    history = history.slice(0, 100);
+                }
+                
+                // 保存到localStorage
+                localStorage.setItem('pipePriceQueryHistory', JSON.stringify(history));
+                
+                // 重新加载历史记录
+                loadQueryHistory();
+            }
+            
+            // 加载查询历史
+            function loadQueryHistory() {
+                // 获取现有历史记录
+                const history = JSON.parse(localStorage.getItem('pipePriceQueryHistory') || '[]');
+                
+                // 清空历史列表
+                historyList.innerHTML = '';
+                
+                // 检查是否有历史记录
+                if (history.length === 0) {
+                    emptyHistoryMsg.classList.remove('hidden');
+                    return;
+                }
+                
+                // 隐藏空提示
+                emptyHistoryMsg.classList.add('hidden');
+                
+                // 添加历史记录到列表
+                history.forEach((item, index) => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'p-3 border-b border-gray-100 history-item-hover';
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-medium">${item.standard} · ${item.pipeType}</p>
+                                <p class="text-sm text-gray-600 mt-1">${item.outerDiameter} · ${item.wallThickness}mm · ${item.specification}</p>
+                                <p class="text-sm text-gray-500 mt-1">${item.steelType} · ${new Date(item.timestamp).toLocaleString()}</p>
+                            </div>
+                            <p class="text-primary font-medium">${item.price.toFixed(2)}元</p>
+                        </div>
+                    `;
+                    
+                    // 点击历史记录项，加载该查询
+                    historyItem.addEventListener('click', function() {
+                        // 设置选择框的值
+                        standardSelect.value = item.standard;
+                        standardSelect.dispatchEvent(new Event('change'));
+                        
+                        // 使用setTimeout确保前一个change事件处理完成
+                        setTimeout(() => {
+                            pipeTypeSelect.value = item.pipeType;
+                            pipeTypeSelect.dispatchEvent(new Event('change'));
+                            
+                            setTimeout(() => {
+                                steelTypeSelect.value = item.steelType;
+                                steelTypeSelect.dispatchEvent(new Event('change'));
+                                
+                                setTimeout(() => {
+                                    outerDiameterSelect.value = item.outerDiameter;
+                                    outerDiameterSelect.dispatchEvent(new Event('change'));
+                                    
+                                    setTimeout(() => {
+                                        wallThicknessSelect.value = item.wallThickness;
+                                        wallThicknessSelect.dispatchEvent(new Event('change'));
+                                        
+                                        setTimeout(() => {
+                                            specificationSelect.value = item.specification;
+                                            specificationSelect.dispatchEvent(new Event('change'));
+                                        }, 100);
+                                    }, 100);
+                                }, 100);
+                            }, 100);
+                        }, 100);
+                    });
+                    
+                    historyList.appendChild(historyItem);
+                });
+            }
+        }
+
+        // 登录功能实现
+        document.addEventListener('DOMContentLoaded', function() {
+            // 默认密码设置为 'pveo2025'
+            const ACCESS_PASSWORD = 'pveo2025';
+            
+            // 获取DOM元素
+            const loginScreen = document.getElementById('loginScreen');
+            const mainSystem = document.getElementById('mainSystem');
+            const loginForm = document.getElementById('loginForm');
+            const passwordInput = document.getElementById('password');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // 检查是否已登录，如果已登录直接显示主界面
+            if(sessionStorage.getItem('pipeSystemLoggedIn') === 'true') {
+                loginScreen.classList.add('hidden');
+                mainSystem.classList.remove('hidden');
+                initPipeSystem();
+                return;
+            }
+            
+            // 登录表单提交处理
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if(passwordInput.value === ACCESS_PASSWORD) {
+                    // 登录成功，记录登录状态到sessionStorage
+                    sessionStorage.setItem('pipeSystemLoggedIn', 'true');
+                    
+                    // 添加登录界面滑出动画
+                    loginScreen.classList.add('slide-out');
+                    
+                    // 等待动画完成后隐藏登录界面并显示主系统
+                    setTimeout(() => {
+                        loginScreen.classList.add('hidden');
+                        mainSystem.classList.remove('hidden');
+                        
+                        // 初始化管道系统
+                        initPipeSystem();
+                    }, 400);
+                } else {
+                    // 密码错误，显示错误信息并添加抖动动画
+                    errorMsg.classList.remove('hidden');
+                    passwordInput.classList.add('shake');
+                    
+                    // 动画结束后移除抖动类
+                    setTimeout(() => {
+                        passwordInput.classList.remove('shake');
+                    }, 500);
+                }
+            });
+        });
+        
+        // 数据库编辑器相关函数
+        function openDatabaseEditor() {
+            const databaseModal = document.getElementById('databaseModal');
+            const databaseContent = document.getElementById('databaseContent');
+            const dbNodeCount = document.getElementById('dbNodeCount');
+            
+            // 显示模态框
+            databaseModal.classList.remove('hidden');
+            
+            // 清空现有内容
+            databaseContent.innerHTML = '';
+            
+            // 递归渲染数据库节点
+            let nodeCount = 0;
+            
+            function renderNode(data, level = 0, parentKeys = []) {
+                if (typeof data !== 'object' || data === null) return;
+                
+                Object.entries(data).forEach(([key, value]) => {
+                    nodeCount++;
+                    const currentKeys = [...parentKeys, key];
+                    
+                    // 创建节点元素
+                    const node = document.createElement('div');
+                    node.className = `db-node db-node-level-${Math.min(level, 5)}`;
+                    
+                    // 如果是叶子节点（价格）
+                    if (typeof value !== 'object' || value === null || 
+                        (Array.isArray(value) && value.length === 0) ||
+                        (currentKeys.length === 6 && typeof value === 'number')) {
+                        
+                        node.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="font-medium">${key}</span>
+                                    <span class="text-xs text-gray-500 ml-2">${currentKeys.join(' → ')}</span>
+                                </div>
+                                <span class="db-price" data-keys="${JSON.stringify(currentKeys)}">
+                                    ${value !== null ? (typeof value === 'number' ? value.toFixed(2) : value) : '-'}
+                                </span>
+                            </div>
+                        `;
+                        
+                        // 添加价格编辑功能
+                        const priceElement = node.querySelector('.db-price');
+                        priceElement.addEventListener('click', function() {
+                            const currentValue = this.textContent.trim();
+                            const input = document.createElement('input');
+                            input.type = 'number';
+                            input.value = currentValue !== '-' ? currentValue : '';
+                            input.step = '0.01';
+                            input.className = 'w-24 text-right font-medium text-primary border-b border-primary';
+                            
+                            // 替换文本为输入框
+                            this.innerHTML = '';
+                            this.appendChild(input);
+                            input.focus();
+                            
+                            // 失去焦点时保存
+                            input.addEventListener('blur', function() {
+                                const newValue = this.value.trim();
+                                const keys = JSON.parse(priceElement.getAttribute('data-keys'));
+                                
+                                // 更新显示
+                                if (newValue) {
+                                    priceElement.textContent = parseFloat(newValue).toFixed(2);
+                                    // 更新数据库
+                                    updateDatabaseValue(pipePriceDB, keys, parseFloat(newValue));
+                                } else {
+                                    priceElement.textContent = '-';
+                                    // 更新数据库为null
+                                    updateDatabaseValue(pipePriceDB, keys, null);
+                                }
+                            });
+                            
+                            // 按Enter键保存
+                            input.addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    this.blur();
+                                }
+                            });
+                        });
+                    } else {
+                        // 非叶子节点
+                        node.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium">${key}</span>
+                                <button class="toggle-node text-gray-400 hover:text-primary transition-all-300">
+                                    <i class="fa fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="node-children mt-2 hidden"></div>
+                        `;
+                        
+                        // 渲染子节点
+                        const childrenContainer = node.querySelector('.node-children');
+                        renderNode(value, level + 1, currentKeys);
+                        
+                        // 添加展开/折叠功能
+                        const toggleBtn = node.querySelector('.toggle-node');
+                        toggleBtn.addEventListener('click', function() {
+                            childrenContainer.classList.toggle('hidden');
+                            const icon = this.querySelector('i');
+                            if (childrenContainer.classList.contains('hidden')) {
+                                icon.classList.remove('fa-chevron-up');
+                                icon.classList.add('fa-chevron-down');
+                            } else {
+                                icon.classList.remove('fa-chevron-down');
+                                icon.classList.add('fa-chevron-up');
+                            }
+                        });
+                        
+                        // 默认展开前两级节点
+                        if (level < 2) {
+                            childrenContainer.classList.remove('hidden');
+                            const icon = toggleBtn.querySelector('i');
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-up');
+                        }
+                        
+                        // 将子节点移动到容器中
+                        const childNodes = databaseContent.querySelectorAll(`.db-node-level-${level + 1}`);
+                        childNodes.forEach(childNode => {
+                            if (childNode.parentNode === databaseContent) {
+                                childrenContainer.appendChild(childNode);
+                            }
+                        });
+                    }
+                    
+                    databaseContent.appendChild(node);
+                });
+            }
+            
+            // 开始渲染数据库
+            renderNode(pipePriceDB);
+            
+            // 更新节点计数
+            dbNodeCount.textContent = nodeCount;
+            
+            // 保存数据库按钮事件
+            document.getElementById('saveDatabaseBtn').addEventListener('click', function() {
+                if (saveDatabaseToLocalStorage()) {
+                    // 显示保存成功提示
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fa fa-check mr-1"></i> 保存成功';
+                    this.classList.add('bg-green-500');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.classList.remove('bg-green-500');
+                    }, 2000);
+                }
+            });
+            
+            // 导出数据库按钮事件
+            document.getElementById('exportDatabaseBtn').addEventListener('click', function() {
+                const dataStr = JSON.stringify(pipePriceDB, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `pipe-price-db-${new Date().toISOString().slice(0,10)}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+            });
+            
+            // 导入数据库按钮事件
+            document.getElementById('importDatabaseBtn').addEventListener('click', function() {
+                document.getElementById('importDatabaseFile').click();
+            });
+            
+            // 导入数据库文件选择事件
+            document.getElementById('importDatabaseFile').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedDB = JSON.parse(e.target.result);
+                        if (confirm('确定要导入数据库吗？这将覆盖当前所有数据。')) {
+                            pipePriceDB = importedDB;
+                            saveDatabaseToLocalStorage();
+                            openDatabaseEditor(); // 重新打开数据库编辑器以刷新显示
+                        }
+                    } catch (error) {
+                        alert('导入失败，文件格式不正确。');
+                        console.error('数据库导入错误:', error);
+                    }
+                };
+                reader.readAsText(file);
+                
+                // 重置文件输入，以便可以再次选择同一个文件
+                this.value = '';
+            });
+            
+            // 搜索数据库功能
+            document.getElementById('dbSearchBtn').addEventListener('click', function() {
+                const searchTerm = document.getElementById('dbSearchInput').value.toLowerCase();
+                searchDatabaseNodes(searchTerm);
+            });
+            
+            // 按Enter键搜索
+            document.getElementById('dbSearchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const searchTerm = this.value.toLowerCase();
+                    searchDatabaseNodes(searchTerm);
+                }
+            });
+        }
+        
+        // 关闭数据库编辑器
+        function closeDatabaseEditor() {
+            document.getElementById('databaseModal').classList.add('hidden');
+        }
+        
+        // 更新数据库中的值
+        function updateDatabaseValue(obj, keys, value) {
+            let current = obj;
+            for (let i = 0; i < keys.length - 1; i++) {
+                current = current[keys[i]];
+                if (current === undefined) return;
+            }
+            current[keys[keys.length - 1]] = value;
+        }
+        
+        // 搜索数据库节点
+        function searchDatabaseNodes(searchTerm) {
+            if (!searchTerm) {
+                // 如果搜索词为空，显示所有节点
+                document.querySelectorAll('.db-node').forEach(node => {
+                    node.classList.remove('hidden');
+                });
+                return;
+            }
+            
+            const allNodes = document.querySelectorAll('.db-node');
+            let found = false;
+            
+            allNodes.forEach(node => {
+                // 检查节点文本是否包含搜索词
+                const nodeText = node.textContent.toLowerCase();
+                const nodeMatches = nodeText.includes(searchTerm);
+                
+                // 如果节点匹配，显示它并展开所有父节点
+                if (nodeMatches) {
+                    node.classList.remove('hidden');
+                    found = true;
+                    
+                    // 展开所有父节点
+                    let parent = node.closest('.node-children');
+                    while (parent) {
+                        parent.classList.remove('hidden');
+                        // 更新父节点的图标
+                        const toggleBtn = parent.previousElementSibling.querySelector('.toggle-node i');
+                        if (toggleBtn) {
+                            toggleBtn.classList.remove('fa-chevron-down');
+                            toggleBtn.classList.add('fa-chevron-up');
+                        }
+                        parent = parent.closest('.db-node').querySelector('.node-children');
+                    }
+                } else {
+                    // 不匹配的节点隐藏
+                    node.classList.add('hidden');
+                }
+            });
+            
+            // 如果没有找到匹配项，显示提示
+            const noResults = document.getElementById('dbNoResults');
+            if (!found) {
+                if (!noResults) {
+                    const noResultsEl = document.createElement('div');
+                    noResultsEl.id = 'dbNoResults';
+                    noResultsEl.className = 'text-center py-6 text-gray-500';
+                    noResultsEl.innerHTML = '<i class="fa fa-search text-2xl mb-2"></i><p>没有找到匹配的内容</p>';
+                    document.getElementById('databaseContent').prepend(noResultsEl);
+                }
+            } else if (noResults) {
+                noResults.remove();
+            }
+        }
+        
+        // 系统预览功能
+        function launchSystemPreview() {
+            alert('系统预览功能：此功能将展示系统的主要功能和使用方法。');
+        }
+    </script>
+</body>
+</html>
