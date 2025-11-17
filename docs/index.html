@@ -283,14 +283,14 @@
 							<div>
 								<p class="text-sm text-gray-600">标准类型：<span id="detail-standard" class="font-medium text-gray-800">-</span></p>
 								<p class="text-sm text-gray-600 mt-2">管件类型：<span id="detail-type" class="font-medium text-gray-800">-</span></p>
-								<p class="text-sm text-gray-600 mt-2">外径规格：<span id="detail-od-spec" class="font-medium text-gray-800">-</span>（<span id="detail-od-mm" class="font-medium text-gray-800">-</span> mm）</p>
+								<p class="text-sm text-gray-600 mt-2">外径规格：<span id="detail-od-spec" class="font-medium text-gray-800">-</span></p>
+								<p class="text-sm text-gray-600 mt-2">规格：<span id="detail-spec" class="font-medium text-gray-800">-</span></p>
 								<p class="text-sm text-gray-600 mt-2">壁厚：<span id="detail-wt-mm" class="font-medium text-gray-800">-</span> mm</p>
 							</div>
 							<div>
-								<p class="text-sm text-gray-600">规格：<span id="detail-spec" class="font-medium text-gray-800">-</span></p>
-								<p class="text-sm text-gray-600 mt-2">钢材类型：<span id="detail-steel" class="font-medium">-</span></p>
+								<p class="text-sm text-gray-600">选中钢材类型：<span id="detail-steel" class="font-medium">-</span></p>
 								<p class="text-sm text-gray-600 mt-2">对应单价：<span id="detail-price" class="font-bold text-xl">-</span></p>
-								<p class="text-sm text-gray-600 mt-3">数据来源：<span id="detail-source" class="font-medium text-gray-800">-</span></p>
+								<p class="text-sm text-gray-600 mt-3">数据来源：<span id="detail-source" class="font-medium text-gray-800">系统内置数据库</span></p>
 							</div>
 							<div>
 								<p class="text-sm text-gray-600">同规格其他材质价格：</p>
@@ -1704,7 +1704,7 @@
 						"低于6000Psi": {
 							"焊接+吹扫口": { "316L BA": 27346.67 },
 							"焊接+吹扫口+阀门": { "316L BA": 27813.33 }
-                       }
+                        }
                     }
                 }
             },
@@ -1776,6 +1776,7 @@
                 const spec = document.getElementById('spec');
                 const wtSpec = document.getElementById('wt-spec');
                 const priceDisplay = document.getElementById('price-display');
+                const detailPanel = document.getElementById('selected-detail-panel');
                 
                 // 1. 标准类型变化时更新管件类型
                 standardType.addEventListener('change', function() {
@@ -1793,6 +1794,7 @@
                     } else {
                         pipeType.disabled = true;
                         resetSelectsAfter(pipeType);
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
@@ -1830,8 +1832,10 @@
                         
                         steelType.disabled = false;
                         resetSelectsAfter(steelType);
+                        detailPanel.classList.add('hidden');
                     } else {
                         resetSelectsAfter(this);
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
@@ -1870,8 +1874,10 @@
                         
                         odSpec.disabled = false;
                         resetSelectsAfter(odSpec);
+                        detailPanel.classList.add('hidden');
                     } else {
                         resetSelectsAfter(this);
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
@@ -1908,8 +1914,10 @@
                         
                         spec.disabled = false;
                         resetSelectsAfter(spec);
+                        detailPanel.classList.add('hidden');
                     } else {
                         resetSelectsAfter(this);
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
@@ -1943,13 +1951,15 @@
                         });
                         
                         wtSpec.disabled = false;
-                        priceDisplay.innerHTML = '<span class="text-gray-500">请选择壁厚</span>';
+                        resetSelectsAfter(wtSpec);
+                        detailPanel.classList.add('hidden');
                     } else {
                         resetSelectsAfter(this);
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
-                // 6. 壁厚变化时显示价格并添加到历史记录
+                // 6. 壁厚变化时计算并显示价格
                 wtSpec.addEventListener('change', function() {
                     const selectedStandard = standardType.value;
                     const selectedPipeType = pipeType.value;
@@ -1958,108 +1968,194 @@
                     const selectedSpec = spec.value;
                     const selectedWt = this.value;
                     
-                    if (selectedStandard && selectedPipeType && selectedSteel && selectedOd && 
-                        selectedSpec && selectedWt &&
+                    if (selectedStandard && selectedPipeType && selectedSteel && selectedOd && selectedSpec && selectedWt &&
                         pipeData[selectedStandard][selectedPipeType][selectedOd][selectedSpec][selectedWt]) {
                         
-                        // 获取价格
-                        const price = pipeData[selectedStandard][selectedPipeType][selectedOd][
-                            selectedSpec][selectedWt][selectedSteel];
+                        const priceData = pipeData[selectedStandard][selectedPipeType][selectedOd][selectedSpec][selectedWt];
+                        const price = priceData[selectedSteel];
                         
-                        if (price !== null) {
-                            priceDisplay.innerHTML = `<span class="font-bold text-enMain">${price.toFixed(2)}</span>`;
+                        if (price !== null && price !== undefined) {
+                            priceDisplay.innerHTML = `<span class="font-bold text-lg">${price.toFixed(2)}</span> 元`;
                             
-                            // 创建历史记录项
-                            const historyItem = {
-                                id: Date.now(), // 唯一ID
-                                timestamp: new Date(),
+                            // 更新详情面板
+                            updateDetailPanel({
                                 standard: selectedStandard,
                                 pipeType: selectedPipeType,
-                                steelType: selectedSteel,
+                                steel: selectedSteel,
                                 odSpec: selectedOd,
                                 spec: selectedSpec,
-                                wtSpec: selectedWt,
-                                price: price
-                            };
+                                wt: selectedWt,
+                                price: price,
+                                otherPrices: priceData
+                            });
                             
-                            // 添加到历史记录并更新显示
-                            addToHistory(historyItem);
+                            // 显示详情面板
+                            detailPanel.classList.remove('hidden');
+                            detailPanel.classList.add('slide-in');
+                            
+                            // 添加到历史记录
+                            addToHistory({
+                                standard: selectedStandard,
+                                pipeType: selectedPipeType,
+                                steel: selectedSteel,
+                                odSpec: selectedOd,
+                                spec: selectedSpec,
+                                wt: selectedWt,
+                                price: price,
+                                timestamp: new Date()
+                            });
                         } else {
-                            priceDisplay.innerHTML = '<span class="text-red-500">暂无此规格价格</span>';
+                            priceDisplay.innerHTML = '<span class="text-red-500">暂无此规格价格数据</span>';
+                            detailPanel.classList.add('hidden');
                         }
                     } else {
                         priceDisplay.innerHTML = '<span class="text-gray-500">请完成前六项选择</span>';
+                        detailPanel.classList.add('hidden');
                     }
                 });
                 
-                // 重置后续选择框的函数
-                function resetSelectsAfter(selectElement) {
-                    const elementsAfter = {
-                        'pipe-type': [steelType, odSpec, spec, wtSpec],
-                        'steel-type': [odSpec, spec, wtSpec],
-                        'od-spec': [spec, wtSpec],
-                        'spec': [wtSpec],
-                        'wt-spec': []
-                    };
+                // 重置后续选择框
+                function resetSelectsAfter(element) {
+                    const selects = [pipeType, steelType, odSpec, spec, wtSpec, priceDisplay];
+                    const index = selects.indexOf(element);
                     
-                    const selectsToReset = elementsAfter[selectElement.id] || [];
-                    selectsToReset.forEach(select => {
-                        select.innerHTML = '<option value="">请先完成前面的选择</option>';
-                        select.disabled = true;
-                    });
-                    
-                    priceDisplay.innerHTML = '<span class="text-gray-500">请完成前六项选择</span>';
-                    document.getElementById('selected-detail-panel').classList.add('hidden');
-                }
-            }
-
-            // 添加到历史记录
-            function addToHistory(item) {
-                // 限制历史记录数量为20条
-                queryHistory.unshift(item); // 添加到开头
-                if (queryHistory.length > 20) {
-                    queryHistory.pop(); // 移除最早的记录
-                }
-                updateHistoryDisplay();
-            }
-
-            // 更新历史记录显示
-            function updateHistoryDisplay() {
-                const historyList = document.getElementById('history-list');
-                const emptyHistoryMsg = document.getElementById('empty-history');
-                
-                // 清空现有内容（保留空历史消息）
-                while (historyList.firstChild) {
-                    historyList.removeChild(historyList.firstChild);
+                    if (index !== -1) {
+                        for (let i = index + 1; i < selects.length - 1; i++) {
+                            selects[i].innerHTML = `<option value="">请先完成前面选择</option>`;
+                            selects[i].disabled = true;
+                        }
+                        // 重置价格显示
+                        selects[selects.length - 1].innerHTML = '<span class="text-gray-500">请完成前六项选择</span>';
+                    }
                 }
                 
-                if (queryHistory.length === 0) {
-                    // 显示空历史消息
-                    historyList.appendChild(emptyHistoryMsg);
-                } else {
-                    // 添加历史记录项
-                    queryHistory.forEach(item => {
+                // 更新详情面板信息
+                function updateDetailPanel(data) {
+                    // 转换标准类型显示文本
+                    const standardText = {
+                        'en': '英标',
+                        'jp': '日标',
+                        'dn': 'DN'
+                    }[data.standard] || data.standard;
+                    
+                    // 更新面板样式
+                    const detailPanel = document.getElementById('selected-detail-panel');
+                    detailPanel.className = 'border rounded-xl p-6 transform transition-all duration-300 hover:shadow-md';
+                    detailPanel.classList.add(`panel-${data.standard}-style`);
+                    
+                    // 更新标题样式
+                    const titleElement = document.getElementById('detail-panel-title');
+                    titleElement.className = `font-bold mb-4 flex items-center text-${data.standard}Main`;
+                    
+                    // 更新详情数据
+                    document.getElementById('detail-standard').textContent = standardText;
+                    document.getElementById('detail-type').textContent = data.pipeType;
+                    document.getElementById('detail-od-spec').textContent = data.odSpec;
+                    document.getElementById('detail-spec').textContent = data.spec;
+                    document.getElementById('detail-wt-mm').textContent = data.wt;
+                    document.getElementById('detail-steel').textContent = data.steel;
+                    document.getElementById('detail-price').textContent = `${data.price.toFixed(2)} 元`;
+                    
+                    // 更新其他材质价格
+                    document.getElementById('detail-304ap').textContent = formatPrice(data.otherPrices['304 AP']);
+                    document.getElementById('detail-304lba').textContent = formatPrice(data.otherPrices['304L BA']);
+                    document.getElementById('detail-316lba').textContent = formatPrice(data.otherPrices['316L BA']);
+                    document.getElementById('detail-316lep').textContent = formatPrice(data.otherPrices['316L EP']);
+                }
+                
+                // 格式化价格显示
+                function formatPrice(price) {
+                    if (price === null || price === undefined) {
+                        return '-';
+                    }
+                    if (typeof price === 'string') {
+                        return price;
+                    }
+                    return price.toFixed(2);
+                }
+                
+                // 添加到历史记录
+                function addToHistory(item) {
+                    // 限制历史记录数量为20条
+                    if (queryHistory.length >= 20) {
+                        queryHistory.pop();
+                    }
+                    // 添加到历史记录开头
+                    queryHistory.unshift(item);
+                    // 更新历史记录显示
+                    updateHistoryDisplay();
+                }
+                
+                // 更新历史记录显示
+                function updateHistoryDisplay() {
+                    const historyList = document.getElementById('history-list');
+                    const emptyHistoryMsg = document.getElementById('empty-history');
+                    
+                    if (queryHistory.length === 0) {
+                        emptyHistoryMsg.classList.remove('hidden');
+                        historyList.innerHTML = '';
+                        return;
+                    }
+                    
+                    emptyHistoryMsg.classList.add('hidden');
+                    historyList.innerHTML = '';
+                    
+                    queryHistory.forEach((item, index) => {
                         const historyItem = document.createElement('div');
-                        historyItem.className = 'history-item history-fade-in';
-                        historyItem.dataset.id = item.id;
+                        historyItem.className = 'history-item history-fade-in border-gray-200';
+                        historyItem.style.animationDelay = `${index * 50}ms`;
+                        
+                        const standardText = {
+                            'en': '英标',
+                            'jp': '日标',
+                            'dn': 'DN'
+                        }[item.standard] || item.standard;
                         
                         // 格式化时间
                         const timeStr = item.timestamp.toLocaleString();
                         
-                        // 转换标准类型为中文
-                        const standardMap = { 'en': '英标', 'jp': '日标', 'dn': 'DN' };
-                        const standardText = standardMap[item.standard] || item.standard;
-                        
                         historyItem.innerHTML = `
                             <div class="flex justify-between items-start">
                                 <div>
-                                    <p class="font-medium">${item.pipeType}</p>
-                                    <p class="text-sm text-gray-600 mt-1">${standardText} · ${item.odSpec} · ${item.steelType}</p>
+                                    <p class="font-medium">${standardText} ${item.pipeType}</p>
+                                    <p class="text-sm text-gray-600 mt-1">${item.odSpec} ${item.spec} ${item.wt}mm</p>
+                                    <p class="text-sm text-gray-600 mt-1">${item.steel}: <span class="font-bold">${item.price.toFixed(2)}元</span></p>
                                 </div>
-                                <span class="font-bold text-enMain">${item.price.toFixed(2)}元</span>
+                                <span class="text-xs text-gray-400">${timeStr}</span>
                             </div>
-                            <p class="text-xs text-gray-500 mt-2">${timeStr}</p>
                         `;
+                        
+                        // 添加点击事件，重新加载该历史记录的参数
+                        historyItem.addEventListener('click', () => {
+                            standardType.value = item.standard;
+                            standardType.dispatchEvent(new Event('change'));
+                            
+                            // 延迟设置后续选项，确保前一个选择框已更新
+                            setTimeout(() => {
+                                pipeType.value = item.pipeType;
+                                pipeType.dispatchEvent(new Event('change'));
+                                
+                                setTimeout(() => {
+                                    steelType.value = item.steel;
+                                    steelType.dispatchEvent(new Event('change'));
+                                    
+                                    setTimeout(() => {
+                                        odSpec.value = item.odSpec;
+                                        odSpec.dispatchEvent(new Event('change'));
+                                        
+                                        setTimeout(() => {
+                                            spec.value = item.spec;
+                                            spec.dispatchEvent(new Event('change'));
+                                            
+                                            setTimeout(() => {
+                                                wtSpec.value = item.wt;
+                                                wtSpec.dispatchEvent(new Event('change'));
+                                            }, 100);
+                                        }, 100);
+                                    }, 100);
+                                }, 100);
+                            }, 100);
+                        });
                         
                         historyList.appendChild(historyItem);
                     });
